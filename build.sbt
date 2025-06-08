@@ -1,65 +1,74 @@
-import java.nio.file.{Files, StandardCopyOption}
-import scala.xml.{Node, Elem}
-
-ThisBuild / version := "0.1"
+ThisBuild / organization := "io.s3j"
+ThisBuild / version := "0.2"
 ThisBuild / scalaVersion := "3.2.0"
 
+Global / excludeLintKeys := Set(idePackagePrefix, commands)
+
+// Dependencies in this configuration are not included in POM document
+val Hidden = config("Hidden").hide.withExtendsConfigs(Vector(Compile))
+val commonConfig = Seq(
+  ivyConfigurations += Hidden,
+  Compile / classpathConfiguration := Hidden,
+
+  Compile / scalaSource := baseDirectory.value / "src",
+  Compile / javaSource := baseDirectory.value / "src-java",
+  Compile / resourceDirectory := baseDirectory.value / "resources",
+  Test / scalaSource := baseDirectory.value / "test-src",
+  Test / javaSource := baseDirectory.value / "test-src-java",
+  Test / resourceDirectory := baseDirectory.value / "test-resources",
+)
+
+val scalaVersionHelperConfig = commonConfig ++ Seq(
+  name := "impl-scala-" + scalaVersion.value,
+  idePackagePrefix := Some("s3j.internal.scala" + scalaVersion.value.replace('.', '_')),
+
+  libraryDependencies ++= Seq(
+    "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Hidden,
+  )
+)
+
+val aggregatedProjects = Seq(
+  api,
+  scala_3_2_0,
+  scala_3_3_0,
+  scala_3_7_0,
+)
+
 lazy val root = (project in file("."))
+  .settings(commonConfig *)
   .settings(
-    organization := "io.s3j",
     name := "s3j-macro-helpers",
 
-    libraryDependencies ++= Seq(
-      "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Provided,
-    ),
-
     publishMavenStyle := true,
-
     versionScheme := Some("semver-spec"),
     licenses := Seq("Apache 2" -> url("https://www.apache.org/licenses/LICENSE-2.0.txt")),
 
-    pomPostProcess := { pom =>
-      def filterDep(dep: Node): Boolean = dep match {
-        case elem: Elem =>
-          val groupId = (elem \ "groupId").text
-          val artifactId = (elem \ "artifactId").text
-          groupId != "org.scala-lang" || !artifactId.startsWith("scala3-compiler")
+    Compile / packageBin := Packager.combineJars(
+      target.value / ("s3j-macro-helpers_3-" + version.value + ".jar"),
+      aggregatedProjects.map(p => p / Compile / packageBin).join.value
+    ),
 
-        case _ => false
-      }
-
-      def transform(node: Node, path: List[String]): Node = node match {
-        case elem: Elem if elem.label == "dependencies" && path == "project" :: Nil =>
-          elem.copy(child = elem.child.filter(filterDep))
-
-        case elem: Elem =>
-          elem.copy(child = elem.child.map(c => transform(c, elem.label :: path)))
-
-        case _ => node
-      }
-
-      transform(pom, Nil)
-    },
+    Compile / packageSrc := (api / Compile / packageSrc).value,
+    Compile / packageDoc := (api / Compile / packageDoc).value,
   )
+  .dependsOn(aggregatedProjects.map(_ % Hidden) *)
 
-commands += Command.command("prepareTest") { st =>
-  val extracted = Project.extract(st)
-  val (nst, ret) = extracted.runTask(root / Compile / packageBin, st)
-  val baseDir = st.getSetting(baseDirectory).get
+lazy val api = (project in file("modules/api"))
+  .settings(commonConfig *)
 
-  val libDir = baseDir / "test" / "lib"
-  val copyDst = libDir / "helpers-build.jar"
+lazy val scala_3_2_0 = (project in file("modules/scala-3.2.0"))
+  .dependsOn(api)
+  .settings(scalaVersionHelperConfig *)
+  .settings(scalaVersion := "3.2.0")
 
-  val log = st.getSetting(sLog).get
-  log.info("Copying built JAR file:")
-  log.info(" from: " + ret.getAbsolutePath)
-  log.info(" to:   " + copyDst.getAbsolutePath)
+lazy val scala_3_3_0 = (project in file("modules/scala-3.3.0"))
+  .dependsOn(api, scala_3_2_0)
+  .settings(scalaVersionHelperConfig *)
+  .settings(scalaVersion := "3.3.0")
 
-  if (!libDir.exists()) {
-    Files.createDirectories(libDir.toPath)
-  }
+lazy val scala_3_7_0 = (project in file("modules/scala-3.7.0"))
+  .dependsOn(api, scala_3_3_0)
+  .settings(scalaVersionHelperConfig *)
+  .settings(scalaVersion := "3.7.0")
 
-  Files.copy(ret.toPath, copyDst.toPath, StandardCopyOption.REPLACE_EXISTING)
-
-  nst
-}
+commands += Packager.prepareTestCommand(root)

@@ -1,12 +1,13 @@
-package s3j.internal.macros
+package s3j.internal.scala3_2_0
+
+import s3j.internal.macros.ClassGenerator
+import s3j.internal.macros.ClassGenerator.FieldHandle
 
 import scala.collection.mutable
 import scala.quoted.{Expr, Quotes, Type}
-import s3j.internal.macros.ClassGenerator.FieldHandle
 
-private class ClassGeneratorImpl(className: String)(using q: Quotes, ci: ClassGeneratorInternals)
+private class ClassGeneratorImpl(className: String)(using q: Quotes, ci: ClassGeneratorOps)
 extends ClassGenerator {
-  import ci.given
   import q.reflect.{*, given}
 
   private final class Field[T](val name: String)(using val staticType: Type[T]) extends FieldHandle[T] {
@@ -21,12 +22,12 @@ extends ClassGenerator {
     override def setInitializer(expr: Expr[T]): Unit = _init = Some(expr.asTerm.changeOwner(symbol))
 
     override def reference(using q: Quotes): Expr[T] = {
-      import q.reflect.{*, given}
+      import q.reflect.*
       Ref(symbol).asExprOf[T]
     }
 
     override def externalReference(using q: Quotes): Expr[T] = {
-      import q.reflect.{*, given}
+      import q.reflect.*
       Typed(Select(Ref(resultSymbol), symbol), TypeTree.of[T]).asExprOf[T]
     }
 

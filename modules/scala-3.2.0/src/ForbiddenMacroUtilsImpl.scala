@@ -1,14 +1,13 @@
-package s3j.internal.macros
+package s3j.internal.scala3_2_0
 
 import dotty.tools.dotc.quoted.QuotesCache
 import dotty.tools.dotc.util.Property
+import s3j.internal.macros.ForbiddenMacroUtils
 
-import java.lang.reflect.Field
-import scala.annotation.tailrec
 import scala.quoted.runtime.impl.QuotesImpl
 import scala.quoted.{Quotes, quotes}
 
-private[s3j] object ForbiddenMacroUtils {
+private object ForbiddenMacroUtilsImpl extends ForbiddenMacroUtils {
   private def getStaticField(cls: Class[_], fieldName: String): AnyRef = {
     val f = cls.getDeclaredField(fieldName)
     f.setAccessible(true)

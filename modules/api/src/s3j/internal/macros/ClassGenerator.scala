@@ -31,10 +31,8 @@ private[s3j] object ClassGenerator {
   }
 
   /** Create new instance of the class generator. Symbols will be owned by the provided quote object. */
-  def apply(className: String)(using Quotes): ClassGenerator = {
-    given ClassGeneratorInternals = ClassGeneratorInternals
-    new ClassGeneratorImpl(className)
-  }
+  def apply(className: String)(using Quotes): ClassGenerator =
+    CompilerBridge.current.classGenerator(className)
 }
 
 /**

@@ -1,5 +1,5 @@
 ThisBuild / organization := "io.s3j"
-ThisBuild / version := "0.2"
+ThisBuild / version := "0.2.1"
 ThisBuild / scalaVersion := "3.2.0"
 
 Global / excludeLintKeys := Set(idePackagePrefix, commands)

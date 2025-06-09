@@ -20,4 +20,7 @@ private[s3j] trait ExtendedImplicitSearch {
     position: q.reflect.Position,
     additionalLocations: Seq[q.reflect.Symbol]
   ): q.reflect.ImplicitSearchResult
+
+  /** Enable or disable debug printouts */
+  def setDebug(debug: Boolean): Unit
 }

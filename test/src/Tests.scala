@@ -32,4 +32,14 @@ class Tests extends AnyFlatSpec with Matchers {
     iterable should include("s3j.test.CanMeow.iterableCanMeow")
     iterable should include("s3j.test.ImplicitHelpers.Assisted.assistedMeow")
   }
+
+  it should "not resolve implicits from owning givens" in {
+    given moo: CanMeow[Moo] = {
+      // Macro should ignore not-yet-defined `moo`, even though it is technically in the scope
+      Macros.findImplicit[CanMeow[Moo]] shouldBe "s3j.test.ImplicitHelpers.Assisted.assistedMeow[s3j.test.Moo]"
+      new CanMeow[Moo] { def meow: String = "moo" }
+    }
+
+    moo // trigger lazy initialization
+  }
 }
